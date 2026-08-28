@@ -1,93 +1,290 @@
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>لوحة التحكم - Admin</title>
-    <script src="https://cdn.tailwindcss.com"></script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>لوحة الإدارة | منصة الفيديوهات</title>
+  <link rel="stylesheet" href="style.css">
 </head>
-<body class="bg-gray-100 min-h-screen font-sans">
+<body>
 
-    <nav class="bg-white shadow-md px-6 py-4 flex justify-between items-center">
-        <h1 class="text-xl font-bold text-indigo-600">لوحة التحكم (Admin)</h1>
-        <div class="space-x-4 space-x-reverse">
-            <a href="/home" class="text-gray-600 hover:text-indigo-600 font-medium">الرئيسية</a>
-            <a href="/admin" class="text-gray-600 hover:text-indigo-600 font-medium">لوحة التحكم</a>
-        </div>
-    </nav>
+  <nav class="navbar">
+    <div class="brand">⚙️ لوحة الإدارة</div>
+    <ul class="nav-links">
+      <li><a href="/home">الرئيسية</a></li>
+      <li><a href="/admin" class="active">الإدارة</a></li>
+    </ul>
+    <div style="display: flex; align-items: center; gap: 1rem;">
+      <span class="user-badge" id="navAdminName">مسؤول النظام</span>
+      <button class="btn-logout" id="logoutBtn">خروج</button>
+    </div>
+  </nav>
 
-    <div class="max-w-5xl mx-auto px-4 py-8">
-        <h2 class="text-2xl font-bold text-gray-800 mb-6">فيديوهات الأعضاء</h2>
-        
-        <div id="videosContainer" class="grid grid-cols-1 md:grid-cols-2 gap-6">
-            </div>
+  <div class="container">
+    <div class="stats-grid">
+      <div class="glass-card stat-card">
+        <h3 id="statTotalUsers">0</h3>
+        <p>إجمالي الأعضاء المشاركين</p>
+      </div>
+      <div class="glass-card stat-card">
+        <h3 id="statTotalVideos">0</h3>
+        <p>إجمالي الفيديوهات</p>
+      </div>
+      <div class="glass-card stat-card">
+        <h3 id="statTodayVideos">0</h3>
+        <p>الفيديوهات المرفوعة اليوم</p>
+      </div>
     </div>
 
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-        import { getFirestore, collection, query, orderBy, onSnapshot } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+    <div class="glass-card" style="margin-bottom: 2rem;">
+      <div class="form-group" style="margin: 0;">
+        <input 
+          type="text" 
+          id="searchInput" 
+          class="form-control" 
+          placeholder="ابحث باسم العضو أو اسم الملف..."
+        />
+      </div>
+    </div>
 
-        const firebaseConfig = {
-            apiKey: "AIzaSyDFwusZ60ZdCwNfg__YrMA6Ww25jeBOiDk",
-            authDomain: "vid1-e2c7d.firebaseapp.com",
-            projectId: "vid1-e2c7d",
-            storageBucket: "vid1-e2c7d.firebasestorage.app",
-            messagingSenderId: "323883326794",
-            appId: "1:323883326794:web:e1254b899aefa6584175b3",
-            measurementId: "G-GQHZRYG3B0"
-        };
+    <div class="videos-grid" id="videosGrid">
+      <div class="empty-state glass-card" style="grid-column: 1/-1;">جاري تحميل الفيديوهات...</div>
+    </div>
+  </div>
 
-        const app = initializeApp(firebaseConfig);
-        const db = getFirestore(app);
+  <div class="modal-overlay" id="deleteModal">
+    <div class="modal-content">
+      <h3 style="margin-bottom: 0.5rem; color: var(--text-main);">تأكيد الحذف</h3>
+      <p style="color: var(--text-muted);">هل أنت متأكد من حذف هذا الفيديو؟ لن يمكنك التراجع عن هذا الإجراء.</p>
+      <div class="modal-actions">
+        <button class="btn-primary" id="cancelDeleteBtn" style="background: #9ca3af;">إلغاء</button>
+        <button class="btn-danger" id="confirmDeleteBtn">حذف</button>
+      </div>
+    </div>
+  </div>
 
-        const container = document.getElementById('videosContainer');
+  <script type="module">
+    import { 
+      db, 
+      storage, 
+      collection, 
+      onSnapshot, 
+      query, 
+      orderBy, 
+      deleteDoc, 
+      doc, 
+      ref, 
+      deleteObject, 
+      showToast 
+    } from "./firebase-config.js";
 
-        // الاستماع للتغييرات بشكل لحظي (Real-time listener)
-        const q = query(collection(db, "videos"), orderBy("createdAt", "desc"));
-        onSnapshot(q, (snapshot) => {
-            container.innerHTML = "";
-            if (snapshot.empty) {
-                container.innerHTML = `<p class="text-gray-500 col-span-2 text-center">لا توجد فيديوهات مرفوعة حتى الآن.</p>`;
-                return;
-            }
+    // 1. Simple Security Layer for Admin Access
+    const currentUser = localStorage.getItem("user_fullname");
+    if (!currentUser) {
+      window.location.href = "/login";
+    }
 
-            snapshot.forEach((doc) => {
-                const data = doc.data();
-                const date = data.createdAt ? data.createdAt.toDate().toLocaleDateString('ar-EG', {
-                    year: 'numeric', month: 'long', day: 'numeric'
-                }) : 'جاري الحفظ...';
+    // Protection check (Prompt for simple admin key if not verified)
+    if (!sessionStorage.getItem("admin_authenticated")) {
+      const pin = prompt("يرجى إدخال كلمة مرور الإدارة لدخول هذه الصفحة:");
+      if (pin === "admin123" || pin === "123456") {
+        sessionStorage.setItem("admin_authenticated", "true");
+      } else {
+        alert("غير مصرح لك بالدخول إلى لوحة الإدارة.");
+        window.location.href = "/home";
+      }
+    }
 
-                const card = document.createElement('div');
-                card.className = "bg-white p-6 rounded-2xl shadow-md border border-gray-200 flex flex-col justify-between";
-                
-                card.innerHTML = `
-                    <div>
-                        <div class="flex justify-between items-start mb-3">
-                            <h3 class="text-lg font-bold text-gray-800">${data.title}</h3>
-                            <span class="bg-indigo-100 text-indigo-700 text-xs px-3 py-1 rounded-full font-semibold">${data.userName}</span>
-                        </div>
-                        <div class="mb-4 rounded-lg overflow-hidden bg-black aspect-video flex items-center justify-center">
-                            <video src="${data.videoUrl}" controls class="w-full h-full object-contain"></video>
-                        </div>
-                        <div class="text-sm text-gray-500 space-y-1 mb-4">
-                            <p>📁 ${data.size || 'غير معروف'}</p>
-                            <p>📅 ${date}</p>
-                        </div>
-                    </div>
-                    <div class="flex space-x-2 space-x-reverse pt-2 border-t border-gray-100">
-                        <a href="${data.videoUrl}" target="_blank" 
-                            class="flex-1 bg-indigo-50 text-indigo-600 text-center py-2 rounded-lg font-medium hover:bg-indigo-100 transition">
-                            ▶ مشاهدة
-                        </a>
-                        <a href="${data.videoUrl}" download 
-                            class="flex-1 bg-gray-100 text-gray-700 text-center py-2 rounded-lg font-medium hover:bg-gray-200 transition">
-                            ⬇ تحميل
-                        </a>
-                    </div>
-                `;
-                container.appendChild(card);
-            });
+    document.getElementById("logoutBtn").addEventListener("click", () => {
+      localStorage.removeItem("user_fullname");
+      sessionStorage.removeItem("admin_authenticated");
+      window.location.href = "/login";
+    });
+
+    // 2. Elements & States
+    const videosGrid = document.getElementById("videosGrid");
+    const searchInput = document.getElementById("searchInput");
+    const statTotalUsers = document.getElementById("statTotalUsers");
+    const statTotalVideos = document.getElementById("statTotalVideos");
+    const statTodayVideos = document.getElementById("statTodayVideos");
+
+    const deleteModal = document.getElementById("deleteModal");
+    const cancelDeleteBtn = document.getElementById("cancelDeleteBtn");
+    const confirmDeleteBtn = document.getElementById("confirmDeleteBtn");
+
+    let allVideosData = [];
+    let videoToDelete = null;
+
+    // 3. Realtime Listener using Firestore onSnapshot
+    const videosQuery = query(collection(db, "videos"), orderBy("uploadedAt", "desc"));
+
+    onSnapshot(videosQuery, (snapshot) => {
+      allVideosData = [];
+      snapshot.forEach((docSnap) => {
+        allVideosData.push({ id: docSnap.id, ...docSnap.data() });
+      });
+      
+      updateStats(allVideosData);
+      renderVideos(allVideosData);
+    }, (error) => {
+      showToast("حدث خطأ أثناء جلب الفيديوهات.", "danger");
+    });
+
+    // 4. Update Statistics Dashboard
+    function updateStats(data) {
+      const uniqueUsers = new Set(data.map(v => v.userName));
+      statTotalUsers.textContent = uniqueUsers.size;
+      statTotalVideos.textContent = data.length;
+
+      const today = new Date().toDateString();
+      const todayCount = data.filter(v => {
+        if (!v.uploadedAt) return false;
+        const date = v.uploadedAt.toDate ? v.uploadedAt.toDate() : new Date(v.uploadedAt);
+        return date.toDateString() === today;
+      }).length;
+
+      statTodayVideos.textContent = todayCount;
+    }
+
+    // 5. Render Videos Function
+    function renderVideos(videos) {
+      const searchTerm = searchInput.value.trim().toLowerCase();
+      const filtered = videos.filter(v => 
+        (v.userName && v.userName.toLowerCase().includes(searchTerm)) ||
+        (v.fileName && v.fileName.toLowerCase().includes(searchTerm))
+      );
+
+      if (filtered.length === 0) {
+        videosGrid.innerHTML = `
+          <div class="empty-state glass-card" style="grid-column: 1/-1;">
+            ${searchTerm ? "لم يتم العثور على نتائج تطابق بحثك" : "لا توجد فيديوهات مرفوعة حتى الآن"}
+          </div>`;
+        return;
+      }
+
+      videosGrid.innerHTML = filtered.map(v => {
+        const uploadDate = v.uploadedAt && v.uploadedAt.toDate 
+          ? v.uploadedAt.toDate().toLocaleString('ar-EG') 
+          : 'حديثاً';
+        const formattedSize = (v.fileSize / (1024 * 1024)).toFixed(1) + ' MB';
+
+        return `
+          <div class="glass-card video-card">
+            <div>
+              <div class="video-card-header">
+                <div class="user-avatar">${v.userName ? v.userName.charAt(0) : 'U'}</div>
+                <div>
+                  <h4 style="color: var(--text-main); font-weight: 700;">${v.userName || 'عضو'}</h4>
+                  <span style="font-size: 0.75rem; color: var(--text-muted);">${uploadDate}</span>
+                </div>
+              </div>
+
+              <div class="video-wrapper">
+                <video src="${v.downloadURL}" controls preload="metadata"></video>
+              </div>
+
+              <div class="video-details">
+                <p><strong>الملف:</strong> ${v.fileName}</p>
+                <p><strong>الحجم:</strong> ${formattedSize}</p>
+              </div>
+            </div>
+
+            <div class="action-buttons">
+              <button class="btn-primary trigger-watch" data-url="${v.downloadURL}">
+                ▶ مشاهدة
+              </button>
+              <button class="btn-primary download-btn" data-url="${v.downloadURL}" data-name="${v.fileName}" style="background: #10b981;">
+                ⬇ تحميل
+              </button>
+              <button class="btn-danger delete-btn" data-id="${v.id}" data-path="${v.storagePath}">
+                حذف
+              </button>
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      attachEvents();
+    }
+
+    // 6. Search Bar Event Listener
+    searchInput.addEventListener("input", () => {
+      renderVideos(allVideosData);
+    });
+
+    // 7. Action Button Handlers (Watch, Download, Delete)
+    function attachEvents() {
+      // Watch Video Handler
+      document.querySelectorAll(".trigger-watch").forEach(btn => {
+        btn.addEventListener("click", (e) => {
+          const videoUrl = e.currentTarget.getAttribute("data-url");
+          window.open(videoUrl, "_blank");
         });
-    </script>
+      });
+
+      // Blob Download Handler
+      document.querySelectorAll(".download-btn").forEach(btn => {
+        btn.addEventListener("click", async (e) => {
+          const url = e.currentTarget.getAttribute("data-url");
+          const name = e.currentTarget.getAttribute("data-name");
+          showToast("جاري بدء التحميل...", "success");
+
+          try {
+            const response = await fetch(url);
+            const blob = await response.blob();
+            const blobUrl = URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = blobUrl;
+            a.download = name;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(blobUrl);
+          } catch (err) {
+            window.open(url, "_blank");
+          }
+        });
+      });
+
+      // Delete Modal Handler
+      document.querySelectorAll(".delete-btn").forEach(btn => {
+        btn.addEventListener("click", (e) => {
+          videoToDelete = {
+            id: e.currentTarget.getAttribute("data-id"),
+            path: e.currentTarget.getAttribute("data-path")
+          };
+          deleteModal.classList.add("active");
+        });
+      });
+    }
+
+    cancelDeleteBtn.addEventListener("click", () => {
+      deleteModal.classList.remove("active");
+      videoToDelete = null;
+    });
+
+    confirmDeleteBtn.addEventListener("click", async () => {
+      if (!videoToDelete) return;
+
+      const { id, path } = videoToDelete;
+      deleteModal.classList.remove("active");
+
+      try {
+        // Delete file from Firebase Storage
+        if (path) {
+          const fileRef = ref(storage, path);
+          await deleteObject(fileRef).catch(() => {});
+        }
+
+        // Delete Document from Firestore
+        await deleteDoc(doc(db, "videos", id));
+        showToast("تم حذف الفيديو بنجاح", "success");
+      } catch (err) {
+        showToast("حدث خطأ أثناء تنفيذ الحذف", "danger");
+      } finally {
+        videoToDelete = null;
+      }
+    });
+  </script>
 </body>
 </html>
