@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>لوحة التحكم - Admin</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 min-h-screen font-sans">
+
+    <nav class="bg-white shadow-md px-6 py-4 flex justify-between items-center">
+        <h1 class="text-xl font-bold text-indigo-600">لوحة التحكم (Admin)</h1>
+        <div class="space-x-4 space-x-reverse">
+            <a href="/home" class="text-gray-600 hover:text-indigo-600 font-medium">الرئيسية</a>
+            <a href="/admin" class="text-gray-600 hover:text-indigo-600 font-medium">لوحة التحكم</a>
+        </div>
+    </nav>
+
+    <div class="max-w-5xl mx-auto px-4 py-8">
+        <h2 class="text-2xl font-bold text-gray-800 mb-6">فيديوهات الأعضاء</h2>
+        
+        <div id="videosContainer" class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+        import { getFirestore, collection, query, orderBy, onSnapshot } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyDFwusZ60ZdCwNfg__YrMA6Ww25jeBOiDk",
+            authDomain: "vid1-e2c7d.firebaseapp.com",
+            projectId: "vid1-e2c7d",
+            storageBucket: "vid1-e2c7d.firebasestorage.app",
+            messagingSenderId: "323883326794",
+            appId: "1:323883326794:web:e1254b899aefa6584175b3",
+            measurementId: "G-GQHZRYG3B0"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+
+        const container = document.getElementById('videosContainer');
+
+        // الاستماع للتغييرات بشكل لحظي (Real-time listener)
+        const q = query(collection(db, "videos"), orderBy("createdAt", "desc"));
+        onSnapshot(q, (snapshot) => {
+            container.innerHTML = "";
+            if (snapshot.empty) {
+                container.innerHTML = `<p class="text-gray-500 col-span-2 text-center">لا توجد فيديوهات مرفوعة حتى الآن.</p>`;
+                return;
+            }
+
+            snapshot.forEach((doc) => {
+                const data = doc.data();
+                const date = data.createdAt ? data.createdAt.toDate().toLocaleDateString('ar-EG', {
+                    year: 'numeric', month: 'long', day: 'numeric'
+                }) : 'جاري الحفظ...';
+
+                const card = document.createElement('div');
+                card.className = "bg-white p-6 rounded-2xl shadow-md border border-gray-200 flex flex-col justify-between";
+                
+                card.innerHTML = `
+                    <div>
+                        <div class="flex justify-between items-start mb-3">
+                            <h3 class="text-lg font-bold text-gray-800">${data.title}</h3>
+                            <span class="bg-indigo-100 text-indigo-700 text-xs px-3 py-1 rounded-full font-semibold">${data.userName}</span>
+                        </div>
+                        <div class="mb-4 rounded-lg overflow-hidden bg-black aspect-video flex items-center justify-center">
+                            <video src="${data.videoUrl}" controls class="w-full h-full object-contain"></video>
+                        </div>
+                        <div class="text-sm text-gray-500 space-y-1 mb-4">
+                            <p>📁 ${data.size || 'غير معروف'}</p>
+                            <p>📅 ${date}</p>
+                        </div>
+                    </div>
+                    <div class="flex space-x-2 space-x-reverse pt-2 border-t border-gray-100">
+                        <a href="${data.videoUrl}" target="_blank" 
+                            class="flex-1 bg-indigo-50 text-indigo-600 text-center py-2 rounded-lg font-medium hover:bg-indigo-100 transition">
+                            ▶ مشاهدة
+                        </a>
+                        <a href="${data.videoUrl}" download 
+                            class="flex-1 bg-gray-100 text-gray-700 text-center py-2 rounded-lg font-medium hover:bg-gray-200 transition">
+                            ⬇ تحميل
+                        </a>
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+        });
+    </script>
+</body>
+</html>
