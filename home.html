@@ -1,120 +1,225 @@
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>الصفحة الرئيسية - رفع الفيديو</title>
-    <script src="https://cdn.tailwindcss.com"></script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>الرئيسية | رفع الإجابة</title>
+  <link rel="stylesheet" href="style.css">
 </head>
-<body class="bg-gray-100 min-h-screen font-sans">
+<body>
 
-    <nav class="bg-white shadow-md px-6 py-4 flex justify-between items-center">
-        <h1 class="text-xl font-bold text-indigo-600">منصة رفع الفيديوهات</h1>
-        <div class="space-x-4 space-x-reverse">
-            <a href="/home" class="text-gray-600 hover:text-indigo-600 font-medium">الرئيسية</a>
-            <a href="/admin" class="text-gray-600 hover:text-indigo-600 font-medium">لوحة التحكم (Admin)</a>
-        </div>
-    </nav>
+  <nav class="navbar">
+    <div class="brand">🎬 منصة الفيديوهات</div>
+    <ul class="nav-links">
+      <li><a href="/home" class="active">الرئيسية</a></li>
+      <li><a href="#upload-section">رفع الفيديو</a></li>
+      <li><a href="/admin">الإدارة</a></li>
+    </ul>
+    <div style="display: flex; align-items: center; gap: 1rem;">
+      <span class="user-badge" id="navUserName">...</span>
+      <button class="btn-logout" id="logoutBtn">خروج</button>
+    </div>
+  </nav>
 
-    <div class="max-w-xl mx-auto mt-10 bg-white p-8 rounded-2xl shadow-xl">
-        <h2 id="welcomeUser" class="text-xl font-bold text-gray-800 mb-4">أهلاً بك</h2>
-        
-        <div class="bg-indigo-50 border-r-4 border-indigo-600 p-4 mb-6 rounded-lg">
-            <h3 class="font-semibold text-indigo-900 mb-1">سؤال إبراهيم:</h3>
-            <p class="text-indigo-700">ما هي أهم التحديات التي واجهتك أثناء تطوير المشروع، وكيف تغلبت عليها؟</p>
-        </div>
-
-        <form id="uploadForm" class="space-y-4">
-            <div>
-                <label class="block text-sm font-medium text-gray-700 mb-2">اسم الفيديو / العنوان</label>
-                <input type="text" id="videoTitle" required placeholder="مثال: إجابة السؤال الأول" 
-                    class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none">
-            </div>
-
-            <div>
-                <label class="block text-sm font-medium text-gray-700 mb-2">اختر ملف الفيديو</label>
-                <input type="file" id="videoFile" accept="video/*" required 
-                    class="w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-50">
-            </div>
-
-            <button type="submit" id="submitBtn"
-                class="w-full bg-indigo-600 text-white py-3 rounded-lg font-semibold hover:bg-indigo-700 transition duration-300 shadow-lg">
-                رفع الفيديو
-            </button>
-        </form>
-
-        <div id="loading" class="hidden mt-4 text-center text-indigo-600 font-medium">
-            جاري رفع الفيديو وحفظ البيانات... يرجى الانتظار.
-        </div>
+  <div class="container">
+    <div class="glass-card" style="margin-bottom: 2rem;">
+      <h2 style="color: var(--primary-color); font-size: 1.5rem; margin-bottom: 0.5rem;">السؤال</h2>
+      <p style="color: var(--text-muted);">شاهد الفيديو ثم قم برفع إجابتك</p>
+      
+      <div class="video-wrapper">
+        <video id="questionVideoPlayer" controls controlsList="nodownload"></video>
+      </div>
     </div>
 
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-        import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-storage.js";
-        import { getFirestore, collection, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+    <div class="glass-card" id="upload-section">
+      <h2 style="color: var(--primary-color); font-size: 1.5rem; margin-bottom: 0.5rem;">رفع إجابتك</h2>
+      <p style="color: var(--text-muted); margin-bottom: 1.5rem;">قم باختيار ملف الفيديو من جهازك ثم اضغط على رفع الفيديو</p>
 
-        const firebaseConfig = {
-            apiKey: "AIzaSyDFwusZ60ZdCwNfg__YrMA6Ww25jeBOiDk",
-            authDomain: "vid1-e2c7d.firebaseapp.com",
-            projectId: "vid1-e2c7d",
-            storageBucket: "vid1-e2c7d.firebasestorage.app",
-            messagingSenderId: "323883326794",
-            appId: "1:323883326794:web:e1254b899aefa6584175b3",
-            measurementId: "G-GQHZRYG3B0"
-        };
+      <div class="drop-zone" id="dropZone">
+        <p style="font-size: 1.1rem; font-weight: 700; color: var(--primary-color);">اضغط هنا لاختيار الفيديو</p>
+        <p style="font-size: 0.85rem; color: var(--text-muted); margin-top: 0.5rem;">الامتدادات المسموحة: MP4, WEBM, MOV, M4V</p>
+        <input type="file" id="videoInput" accept="video/mp4,video/webm,video/quicktime,video/x-m4v" style="display: none;">
+      </div>
 
-        const app = initializeApp(firebaseConfig);
-        const storage = getStorage(app);
-        const db = getFirestore(app);
+      <div id="previewCard" style="display: none; margin-top: 1.5rem;">
+        <div class="video-wrapper">
+          <video id="previewPlayer" controls></video>
+        </div>
+        <div class="file-info">
+          <div>
+            <p id="fileNameText" style="font-weight: 700;"></p>
+            <p id="fileMetaText" style="font-size: 0.85rem; color: var(--text-muted);"></p>
+          </div>
+          <button class="btn-danger" id="removeFileBtn">حذف الاختيار</button>
+        </div>
 
-        const userName = localStorage.getItem('userName');
-        if (!userName) {
-            window.location.href = '/login';
-        } else {
-            document.getElementById('welcomeUser').innerText = `أهلاً بك، ${userName}`;
+        <button class="btn-primary" id="startUploadBtn" style="width: 100%; margin-top: 1rem;">
+          رفع الفيديو
+        </button>
+      </div>
+
+      <div id="uploadProgressCard" class="progress-container" style="display: none;">
+        <p style="font-weight: 700; color: var(--primary-color);">جاري رفع الفيديو...</p>
+        <div class="progress-bar-bg" style="margin-top: 0.5rem;">
+          <div class="progress-bar-fill" id="progressBarFill"></div>
+        </div>
+        <div class="progress-text">
+          <span>التقدم</span>
+          <span id="progressPercent">0%</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script type="module">
+    import { 
+      db, 
+      storage, 
+      collection, 
+      addDoc, 
+      serverTimestamp, 
+      ref, 
+      uploadBytesResumable, 
+      getDownloadURL, 
+      showToast 
+    } from "./firebase-config.js";
+
+    // 1. Auth Guard
+    const currentUser = localStorage.getItem("user_fullname");
+    if (!currentUser) {
+      window.location.href = "/login";
+    } else {
+      document.getElementById("navUserName").textContent = currentUser;
+    }
+
+    // 2. Question Video Link Configuration
+    const questionVideoUrl = "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4";
+    document.getElementById("questionVideoPlayer").src = questionVideoUrl;
+
+    // 3. Logout
+    document.getElementById("logoutBtn").addEventListener("click", () => {
+      localStorage.removeItem("user_fullname");
+      window.location.href = "/login";
+    });
+
+    // 4. File Upload Variables
+    const MAX_VIDEO_SIZE = 100 * 1024 * 1024; // 100MB Limit
+    const dropZone = document.getElementById("dropZone");
+    const videoInput = document.getElementById("videoInput");
+    const previewCard = document.getElementById("previewCard");
+    const previewPlayer = document.getElementById("previewPlayer");
+    const fileNameText = document.getElementById("fileNameText");
+    const fileMetaText = document.getElementById("fileMetaText");
+    const removeFileBtn = document.getElementById("removeFileBtn");
+    const startUploadBtn = document.getElementById("startUploadBtn");
+    const uploadProgressCard = document.getElementById("uploadProgressCard");
+    const progressBarFill = document.getElementById("progressBarFill");
+    const progressPercent = document.getElementById("progressPercent");
+
+    let selectedFile = null;
+    let objectUrl = null;
+
+    dropZone.addEventListener("click", () => videoInput.click());
+
+    videoInput.addEventListener("change", (e) => {
+      if (e.target.files.length > 0) {
+        handleSelectedFile(e.target.files[0]);
+      }
+    });
+
+    function handleSelectedFile(file) {
+      const allowedTypes = ["video/mp4", "video/webm", "video/quicktime", "video/x-m4v"];
+      
+      if (!allowedTypes.includes(file.type) && !file.name.match(/\.(mp4|webm|mov|m4v)$/i)) {
+        showToast("نوع الملف غير مدعوم! يرجى اختيار فيديو صالح.", "danger");
+        return;
+      }
+
+      if (file.size > MAX_VIDEO_SIZE) {
+        showToast("حجم الفيديو أكبر من الحجم المسموح به (100 ميجابايت).", "danger");
+        return;
+      }
+
+      selectedFile = file;
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+      objectUrl = URL.createObjectURL(file);
+      
+      previewPlayer.src = objectUrl;
+      fileNameText.textContent = file.name;
+      fileMetaText.textContent = `الحجم: ${(file.size / (1024 * 1024)).toFixed(2)} MB | النوع: ${file.type || 'فيديو'}`;
+      
+      previewCard.style.display = "block";
+      dropZone.style.display = "none";
+    }
+
+    removeFileBtn.addEventListener("click", () => {
+      resetUploadForm();
+    });
+
+    function resetUploadForm() {
+      selectedFile = null;
+      videoInput.value = "";
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+      previewPlayer.src = "";
+      previewCard.style.display = "none";
+      dropZone.style.display = "block";
+      uploadProgressCard.style.display = "none";
+      startUploadBtn.disabled = false;
+    }
+
+    // 5. Upload Implementation
+    startUploadBtn.addEventListener("click", () => {
+      if (!selectedFile) return;
+
+      startUploadBtn.disabled = true;
+      removeFileBtn.style.display = "none";
+      uploadProgressCard.style.display = "block";
+
+      const uniqueId = Date.now() + "_" + Math.random().toString(36).substring(2, 8);
+      const safeFileName = selectedFile.name.replace(/[^a-zA-Z0-9.-]/g, "_");
+      const storagePath = `videos/${uniqueId}_${safeFileName}`;
+      const storageRef = ref(storage, storagePath);
+
+      const uploadTask = uploadBytesResumable(storageRef, selectedFile);
+
+      uploadTask.on(
+        "state_changed",
+        (snapshot) => {
+          const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+          const roundedProgress = Math.round(progress);
+          progressBarFill.style.width = `${roundedProgress}%`;
+          progressPercent.textContent = `${roundedProgress}%`;
+        },
+        (error) => {
+          showToast("حدث خطأ أثناء رفع الفيديو، حاول مرة أخرى.", "danger");
+          startUploadBtn.disabled = false;
+          removeFileBtn.style.display = "inline-block";
+        },
+        async () => {
+          try {
+            const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
+            
+            // Save Metadata to Firestore
+            await addDoc(collection(db, "videos"), {
+              userName: currentUser,
+              fileName: selectedFile.name,
+              storagePath: storagePath,
+              downloadURL: downloadURL,
+              fileSize: selectedFile.size,
+              fileType: selectedFile.type || "video/mp4",
+              uploadedAt: serverTimestamp()
+            });
+
+            showToast("تم رفع الفيديو بنجاح!", "success");
+            resetUploadForm();
+          } catch (err) {
+            showToast("حدث خطأ أثناء حفظ البيانات.", "danger");
+            startUploadBtn.disabled = false;
+            removeFileBtn.style.display = "inline-block";
+          }
         }
-
-        document.getElementById('uploadForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const title = document.getElementById('videoTitle').value;
-            const fileInput = document.getElementById('videoFile');
-            const file = fileInput.files[0];
-
-            if (!file) return;
-
-            const submitBtn = document.getElementById('submitBtn');
-            const loading = document.getElementById('loading');
-            submitBtn.disabled = true;
-            loading.classList.remove('hidden');
-
-            try {
-                // 1. رفع الفيديو إلى Firebase Storage
-                const storageRef = ref(storage, `videos/${Date.now()}_${file.name}`);
-                const snapshot = await uploadBytes(storageRef, file);
-                const downloadURL = await getDownloadURL(snapshot.ref);
-
-                // حساب حجم الملف بالميجابايت
-                const sizeMB = (file.size / (1024 * 1024)).toFixed(2) + ' MB';
-
-                // 2. حفظ بيانات الفيديو في Firestore
-                await addDoc(collection(db, "videos"), {
-                    userName: userName,
-                    title: title,
-                    videoUrl: downloadURL,
-                    size: sizeMB,
-                    createdAt: serverTimestamp()
-                });
-
-                alert('تم رفع الفيديو بنجاح!');
-                window.location.href = '/admin';
-            } catch (error) {
-                console.error("خطأ أثناء الرفع: ", error);
-                alert('حدث خطأ أثناء رفع الفيديو.');
-            } finally {
-                submitBtn.disabled = false;
-                loading.classList.add('hidden');
-            }
-        });
-    </script>
+      );
+    });
+  </script>
 </body>
 </html>
